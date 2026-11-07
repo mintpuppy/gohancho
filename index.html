@@ -1,0 +1,1030 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ごはん帖</title>
+<meta name="description" content="レシピを貼り付けるだけで、1ステップずつ迷わず作れる調理アプリ">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ごはん帖">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#F3F2EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111211" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" href="./favicon.png">
+<style>
+html{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<style>
+/* Layout: iOS-style large-title screens with inset grouped lists; cooking = fixed one-screen column (header / step card / timers / action bar). */
+:root{
+  --bg:#F3F2EF; --surface:#FFFFFF; --fill:#ECEBE7; --fill2:#E3E2DD; --sep:rgba(60,58,52,.16);
+  --fg:#1D1D1F; --fg2:#76757A; --fg3:#AAA9AD;
+  --acc:#5E7D69; --acc-soft:#E5ECE6; --on-acc:#FFFFFF;
+  --heat:#A86A45; --heat-soft:#F5EBE3;
+  --time:#55708E; --time-soft:#E6ECF2;
+  --appl:#796C96; --appl-soft:#EDEAF2;
+  --alert:#B05B4E;
+  --shadow:0 1px 2px rgba(30,30,25,.04), 0 6px 20px rgba(30,30,25,.05);
+  --font:-apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-app-theme="light"]){
+    --bg:#111211; --surface:#1D1E1D; --fill:#2A2B2A; --fill2:#333432; --sep:rgba(255,255,255,.12);
+    --fg:#F2F2F0; --fg2:#9C9CA0; --fg3:#68686C;
+    --acc:#8DAE98; --acc-soft:#253028; --on-acc:#0F130F;
+    --heat:#D8A07E; --heat-soft:#33261D; --time:#97B0CC; --time-soft:#1F2833; --appl:#B0A5CE; --appl-soft:#29253A; --alert:#E08B7F;
+    --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]:not([data-app-theme="light"]), :root[data-app-theme="dark"]{
+  --bg:#111211; --surface:#1D1E1D; --fill:#2A2B2A; --fill2:#333432; --sep:rgba(255,255,255,.12);
+  --fg:#F2F2F0; --fg2:#9C9CA0; --fg3:#68686C;
+  --acc:#8DAE98; --acc-soft:#253028; --on-acc:#0F130F;
+  --heat:#D8A07E; --heat-soft:#33261D; --time:#97B0CC; --time-soft:#1F2833; --appl:#B0A5CE; --appl-soft:#29253A; --alert:#E08B7F;
+  --shadow:none; color-scheme:dark;
+}
+:root[data-app-theme="light"]{color-scheme:light}
+
+*{box-sizing:border-box}
+html{height:100%; font-size:16px}
+body{height:100%; background:var(--bg); color:var(--fg); font-family:var(--font); font-size:1.0625rem; line-height:1.5; -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent; -webkit-font-smoothing:antialiased}
+body.locked{overflow:hidden; overscroll-behavior:none}
+body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:30; background:var(--bg)}
+button{font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; text-align:inherit}
+button:disabled{cursor:default}
+:focus-visible{outline:2px solid var(--acc); outline-offset:2px; border-radius:8px}
+.ic{width:1.2em; height:1.2em; flex:none}
+.vh{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.page{max-width:600px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); padding-block:8px calc(110px + env(safe-area-inset-bottom,0px))}
+
+/* nav + large title */
+.nav{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; min-height:44px}
+.nav .ttl{font-weight:600; font-size:1.0625rem}
+.nav .r{justify-self:end}
+.tl{color:var(--acc); font-weight:500; min-height:44px; display:inline-flex; align-items:center; gap:2px; font-size:1.0625rem}
+.tl:disabled{color:var(--fg3)}
+.tl.b{font-weight:600}
+.lt{padding:6px 4px 18px}
+.lt h1{margin:0; font-size:2.125rem; font-weight:700; line-height:1.18; letter-spacing:.005em}
+.lt p{margin:6px 0 0; color:var(--fg2); font-size:.9375rem; line-height:1.55}
+.cap{margin:26px 16px 7px; font-size:.8125rem; color:var(--fg2); font-weight:500}
+.foot{margin:7px 16px 0; font-size:.8125rem; color:var(--fg2); line-height:1.5}
+
+/* grouped list */
+.group{background:var(--surface); border-radius:14px; overflow:hidden}
+.row{position:relative; display:flex; align-items:center; gap:12px; padding:11px 16px; min-height:52px; width:100%}
+.group > .row + .row::before, .group > * + .row::before{content:""; position:absolute; top:0; left:var(--inset,16px); right:0; height:1px; background:var(--sep); transform:scaleY(.6); transform-origin:top}
+.row .grow{flex:1; min-width:0}
+.row .sub{display:block; color:var(--fg2); font-size:.875rem; line-height:1.4; margin-top:1px}
+.row .chev{color:var(--fg3)}
+.thumb{width:52px; height:52px; border-radius:12px; background:var(--fill); display:grid; place-items:center; color:var(--fg2); font-weight:600; font-size:1.15rem; overflow:hidden; flex:none}
+.thumb img{width:100%; height:100%; object-fit:cover}
+.name{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* buttons */
+.btn{display:flex; width:100%; align-items:center; justify-content:center; gap:8px; min-height:52px; padding:0 20px; border-radius:14px; font-weight:600; font-size:1.0625rem}
+.btn.pri{background:var(--acc); color:var(--on-acc)}
+.btn.tint{background:var(--acc-soft); color:var(--acc)}
+.btn.plain{background:var(--fill)}
+.btn:disabled{opacity:.45}
+.mini{display:inline-flex; align-items:center; gap:4px; min-height:32px; padding:0 13px; border-radius:16px; font-size:.875rem; font-weight:600; background:var(--acc-soft); color:var(--acc); white-space:nowrap}
+.mini.gray{background:var(--fill); color:var(--fg2)}
+.mini.red{background:transparent; color:var(--alert)}
+.stack{display:grid; gap:10px}
+
+/* tab bar */
+.tabbar{position:fixed; left:0; right:0; bottom:0; z-index:20; background:color-mix(in srgb, var(--surface) 82%, transparent); -webkit-backdrop-filter:saturate(1.8) blur(20px); backdrop-filter:saturate(1.8) blur(20px); box-shadow:0 -0.5px 0 var(--sep); padding:4px max(16px, env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px))}
+.tabbar .in{max-width:600px; margin:0 auto; display:grid; grid-template-columns:repeat(3,1fr)}
+.tabbar button{display:flex; flex-direction:column; align-items:center; gap:1px; font-size:.625rem; font-weight:500; color:var(--fg3); min-height:49px; justify-content:center; text-align:center}
+.tabbar button .ic{width:27px; height:27px}
+.tabbar button[aria-current="page"]{color:var(--acc)}
+
+/* overview */
+.ses-row{--inset:80px}
+.prog-line{display:flex; gap:3px; margin-top:7px}
+.prog-line i{flex:1; height:4px; border-radius:2px; background:var(--fill2)}
+.prog-line i.d{background:var(--acc)}
+.prog-line i.c{background:color-mix(in srgb, var(--acc) 45%, var(--fill2))}
+.pill{display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 9px; border-radius:13px; background:var(--time-soft); color:var(--time); font-size:.8125rem; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap}
+.pill.done{background:var(--heat-soft); color:var(--heat)}
+.pill.ok{background:var(--acc-soft); color:var(--acc)}
+.pill.wait{background:var(--fill); color:var(--fg2)}
+.pill .ic{width:14px; height:14px}
+.empty{text-align:center; padding:40px 24px; color:var(--fg2)}
+.empty .ic{width:40px; height:40px; color:var(--fg3); margin-bottom:6px}
+
+/* picker */
+.ck-circle{width:24px; height:24px; border-radius:50%; border:1.5px solid var(--fg3); display:grid; place-items:center; flex:none; color:var(--on-acc)}
+.ck-circle .ic{width:15px; height:15px}
+.sel .ck-circle{background:var(--acc); border-color:var(--acc)}
+.row.dim{opacity:.45}
+.pick-row{--inset:116px}
+.bottom-cta{position:fixed; left:0; right:0; bottom:0; z-index:21; padding:12px max(16px, env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px)); background:linear-gradient(to top, var(--bg) 70%, transparent)}
+.bottom-cta .in{max-width:600px; margin:0 auto}
+
+/* input + review */
+.ta{width:100%; min-height:44vh; border:0; border-radius:14px; background:var(--surface); color:var(--fg); padding:16px; font:inherit; font-size:16px; line-height:1.75; resize:vertical}
+.field{display:grid; gap:6px}
+.field label{font-size:.8125rem; color:var(--fg2); font-weight:500; padding-left:4px}
+.inp{width:100%; border:0; border-radius:10px; background:var(--fill); color:var(--fg); padding:12px 14px; font:inherit; font-size:16px}
+.ta.sm{min-height:140px; background:var(--fill); border-radius:10px; font-size:16px}
+.nameinp{width:100%; border:0; background:transparent; color:var(--fg); font:inherit; font-size:1.25rem; font-weight:700; padding:0}
+.flag{display:block; padding:14px 16px; --inset:16px}
+.flag .fk{font-size:.75rem; color:var(--fg2); font-weight:600}
+.flag .fm{font-size:.9375rem; margin-top:2px; line-height:1.55}
+.flag .fa{display:flex; gap:8px; margin-top:10px}
+.flag.done .fm{color:var(--fg2)}
+.flag .st{display:inline-flex; align-items:center; gap:4px; font-size:.8125rem; font-weight:600; color:var(--acc); margin-top:8px}
+.flag .st .ic{width:15px; height:15px}
+.rstep{padding:14px 16px; display:block}
+.rstep .h{display:flex; align-items:baseline; gap:8px; font-weight:600}
+.rstep .h .n{color:var(--acc); font-variant-numeric:tabular-nums; font-size:.875rem; font-weight:700}
+.rstep .h .t{flex:1; font-size:1.0625rem; letter-spacing:.02em}
+.rstep .h{padding-bottom:8px; border-bottom:1px solid var(--sep)}
+.rstep .tx{font-size:.9375rem; line-height:1.85; margin-top:8px}
+.rstep .tx .blist{gap:.45em}
+.hint{display:flex; gap:8px; align-items:center; font-size:.8125rem; color:var(--fg2); padding:0 16px; margin-top:7px}
+.editable{cursor:pointer; text-decoration:underline dotted var(--fg3); text-decoration-thickness:1.5px; text-underline-offset:5px}
+
+/* inline tokens */
+.ing b{font-weight:700; color:var(--acc)}
+.ing .amt{color:var(--acc); font-weight:700; margin-left:.22em; font-variant-numeric:tabular-nums}
+.ing .amt.dim{color:var(--fg2); font-weight:500; font-size:.88em}
+.ref{font-weight:700}
+.ref::first-letter{color:var(--acc)}
+.opt{color:var(--fg2)}
+.em{font-weight:700}
+.tok{display:inline-flex; align-items:center; gap:.18em; padding:0 .38em; border-radius:.4em; font-weight:700; white-space:nowrap; line-height:1.5; vertical-align:baseline}
+.tok .ic{width:.92em; height:.92em}
+.tok.heat{background:var(--heat-soft); color:var(--heat)}
+.tok.time{background:var(--time-soft); color:var(--time)}
+.tok.appl{background:var(--appl-soft); color:var(--appl)}
+.emph-low .tok{background:transparent; padding:0 .1em}
+.emph-low .ing .amt, .emph-low .ing b{color:var(--fg)}
+.emph-high .ing{background:var(--acc-soft); border-radius:.4em; padding:0 .3em}
+.emph-high .tok{padding:.05em .45em}
+
+/* cooking */
+.ck{height:100%; height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)); max-width:600px; margin:0 auto; display:flex; flex-direction:column; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px))}
+.ck-head{flex:none; padding-top:6px}
+.ck-top{display:flex; gap:8px; align-items:stretch}
+.homebtn{flex:none; width:60px; border-radius:13px; background:var(--surface); color:var(--fg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:.6875rem; font-weight:600}
+.homebtn .ic{width:22px; height:22px; color:var(--acc)}
+.dtabs{flex:1; display:flex; gap:6px; min-width:0}
+.dtab{flex:1; min-width:0; border-radius:13px; padding:7px 10px; min-height:52px; background:var(--surface); color:var(--fg2); display:flex; flex-direction:column; justify-content:center; position:relative; transition:background .2s, color .2s}
+.dtab .nm{font-weight:600; font-size:.875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dtab .st{font-size:.75rem; font-variant-numeric:tabular-nums; opacity:.85}
+.dtab[aria-current="true"]{background:var(--acc); color:var(--on-acc)}
+.dtab .dot{position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%; background:var(--time)}
+.dtab .dot.done{background:var(--heat)}
+.dtab[aria-current="true"] .dot{background:var(--on-acc)}
+.progbtn{display:flex; align-items:center; gap:12px; width:100%; padding:12px 4px 10px; min-height:44px}
+.progbtn .lbl{font-size:.8125rem; font-weight:600; color:var(--fg2); white-space:nowrap; font-variant-numeric:tabular-nums}
+.progbtn .prog-line{flex:1; margin:0}
+.progbtn .all{font-size:.8125rem; color:var(--acc); font-weight:600; white-space:nowrap}
+.stage{flex:1; min-height:0; display:flex; touch-action:pan-y}
+.scard{--tx:20px; flex:1; min-height:0; display:flex; flex-direction:column; background:var(--surface); border-radius:24px; padding:22px 20px 16px; overflow:hidden; box-shadow:var(--shadow)}
+.scard.scroll{overflow-y:auto}
+.snum{font-size:1.75rem; font-weight:800; color:var(--acc); line-height:1.15; letter-spacing:.01em; font-variant-numeric:tabular-nums}
+.stitle{margin:6px 0 0; padding-bottom:14px; border-bottom:1px solid var(--sep); font-size:1.3125rem; line-height:1.4; font-weight:700; letter-spacing:.02em; text-wrap:balance}
+.scard.prep .stitle{border-bottom:0; padding-bottom:0}
+.recipe{margin-top:18px; font-size:var(--tx); line-height:1.72}
+.recipe p{margin:0}
+.blist{list-style:none; margin:0; padding:0; display:grid; gap:.7em}
+.blist li{display:grid; grid-template-columns:.95em 1fr; align-items:start}
+.blist li::before{content:""; width:.32em; height:.32em; border-radius:50%; background:var(--acc); margin-top:.72em}
+.ph{display:inline-block}
+.ing{white-space:nowrap}
+.timers{margin-top:auto; padding-top:16px; display:grid; gap:8px}
+.timer{display:flex; align-items:center; gap:12px; border-radius:16px; background:var(--time-soft); color:var(--time); padding:10px 10px 10px 16px; min-height:72px; width:100%}
+.timer .tx{flex:1; min-width:0}
+.timer .big{font-size:1.75rem; font-weight:600; line-height:1.1; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.timer.run .big{font-size:2.25rem}
+.timer .lb{font-size:.8125rem; font-weight:500; opacity:.9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.timer .go{background:var(--time); color:var(--surface); border-radius:12px; padding:0 18px; height:48px; display:flex; align-items:center; font-weight:600}
+.cbtn{width:52px; height:52px; border-radius:50%; background:var(--surface); color:inherit; display:grid; place-items:center; flex:none}
+.cbtn.solid{background:var(--time); color:var(--surface)}
+.timer.done{background:var(--heat-soft); color:var(--heat)}
+.timer.done .cbtn.solid{background:var(--heat)}
+.timer .cond{display:flex; gap:5px; align-items:center; font-size:.8125rem; font-weight:600; margin-top:2px}
+.timer .cond .ic{width:15px; height:15px}
+.dock{flex:none; display:flex; gap:8px; overflow-x:auto; padding-top:10px; scrollbar-width:none}
+.dock::-webkit-scrollbar{display:none}
+.dk{flex:none; display:flex; align-items:center; gap:8px; background:var(--surface); border-radius:14px; padding:5px 5px 5px 12px}
+.dk .info{font-size:.6875rem; color:var(--fg2); line-height:1.25; white-space:nowrap}
+.dk .info b{display:block; font-size:1rem; color:var(--time); font-variant-numeric:tabular-nums}
+.dk.done .info b{color:var(--heat)}
+.dk .cbtn{width:38px; height:38px; background:var(--time-soft); color:var(--time)}
+.dk.done .cbtn{background:var(--heat-soft); color:var(--heat)}
+.cbar{flex:none; display:grid; grid-template-columns:60px 1fr; gap:10px; padding-block:10px 12px}
+.cbar .prev{min-height:68px; border-radius:18px; background:var(--surface); display:grid; place-items:center; color:var(--fg2)}
+.cbar .prev:disabled{opacity:.35}
+.cbar .next{min-height:68px; border-radius:18px; background:var(--acc); color:var(--on-acc); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 14px; text-align:center}
+.cbar .next .a{font-size:1.125rem; font-weight:700}
+.cbar .next .b{font-size:.75rem; opacity:.82; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%}
+
+/* prep: Notes-style checklist */
+.plist{--pf:18px; --pg:9px; flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; margin:14px -4px 0; padding:0 4px 4px; list-style:none; display:grid; grid-template-columns:1fr; column-gap:18px; align-content:start}
+.plist.two{grid-template-columns:1fr 1fr}
+.plist li{min-width:0}
+.pitem{display:flex; align-items:flex-start; gap:.55em; width:100%; padding:var(--pg) 0; font-size:var(--pf); line-height:1.35; box-shadow:inset 0 -1px 0 var(--sep)}
+.pitem .bx{flex:none; width:1.05em; height:1.05em; margin-top:.15em; border-radius:50%; border:1.5px solid var(--fg3); display:grid; place-items:center; color:var(--on-acc)}
+.pitem .bx .ic{width:.7em; height:.7em}
+.pitem .pt{min-width:0; flex:1}
+.pitem .pn{font-weight:500; color:var(--acc)}
+.pitem .pa{color:var(--acc); font-weight:600; font-variant-numeric:tabular-nums; margin-left:.4em; white-space:nowrap}
+.pitem .pa.dim{color:var(--fg2); font-weight:400; font-size:.88em}
+.pitem .tag{color:var(--fg2); font-size:.8em; margin-left:.35em; white-space:nowrap}
+.pitem.sel .bx{background:var(--acc); border-color:var(--acc)}
+.pitem.sel .pn, .pitem.sel .pa{color:var(--fg3)}
+.pcount{flex:none; padding-top:10px; font-size:.8125rem; color:var(--fg2); font-variant-numeric:tabular-nums}
+
+/* detail */
+.dhead{display:flex; gap:14px; align-items:center; padding:4px 4px 18px}
+.dhead .thumb{width:72px; height:72px; border-radius:16px}
+.dhead h1{margin:0; font-size:1.75rem; line-height:1.25; font-weight:700}
+.dhead .meta{color:var(--fg2); font-size:.875rem; margin-top:4px}
+.notes{list-style:none; margin:0; padding:6px 16px}
+.notes li{display:flex; gap:10px; padding:7px 0; line-height:1.45}
+.notes li::before{content:""; flex:none; width:5px; height:5px; border-radius:50%; background:var(--fg3); margin-top:.62em}
+.notes .nm{color:var(--acc); font-weight:500}
+.notes .a{color:var(--acc); font-weight:600; margin-left:.4em; white-space:nowrap}
+.notes .a.dim{color:var(--fg2); font-weight:400}
+.dstep{padding:14px 16px; display:block}
+.dstep .n{font-size:.9375rem; font-weight:800; color:var(--acc)}
+.dstep .t{font-weight:700; font-size:1.0625rem; margin-top:2px; padding-bottom:8px; border-bottom:1px solid var(--sep); letter-spacing:.02em}
+.dstep .tx{font-size:.9375rem; line-height:1.85; margin-top:8px}
+.dstep .tx .blist{gap:.45em}
+.editing-bar{display:flex; align-items:center; gap:8px; font-size:.8125rem; color:var(--fg2); padding:0 16px; margin-top:8px}
+img.fadein{animation:fadeimg .5s ease both}
+@keyframes fadeimg{from{opacity:0}}
+
+/* finish */
+.fin{flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; background:var(--surface); border-radius:24px; padding:34px 22px 18px; overflow:hidden; box-shadow:var(--shadow)}
+.hero{position:relative; width:148px; height:148px; margin-bottom:22px}
+.hero .ph{width:100%; height:100%; border-radius:50%; overflow:hidden; background:var(--acc-soft); color:var(--acc); display:grid; place-items:center}
+.hero .ph img{width:100%; height:100%; object-fit:cover}
+.hero .ph .ic{width:64px; height:64px}
+.hero .badge{position:absolute; right:4px; bottom:4px; width:40px; height:40px; border-radius:50%; background:var(--acc); color:var(--on-acc); display:grid; place-items:center; border:3px solid var(--surface)}
+.hero .badge .ic{width:20px; height:20px}
+.petal{position:absolute; width:10px; height:10px; border-radius:50% 0; background:var(--acc); opacity:0; animation:petal 2.4s ease-out forwards}
+@keyframes petal{0%{opacity:0; transform:translate(0,0) rotate(0) scale(.4)} 25%{opacity:.75} 100%{opacity:0; transform:translate(var(--dx),var(--dy)) rotate(160deg) scale(1)}}
+.hero .ph{animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{transform:scale(.85); opacity:0}}
+@media (prefers-reduced-motion: reduce){.petal{display:none} .hero .ph{animation:none}}
+.fin h2{margin:0; font-size:2rem; font-weight:700}
+.fin .dish{margin-top:4px; color:var(--fg2); font-size:1rem}
+.stats{display:flex; gap:0; margin:22px 0 0; background:var(--bg); border-radius:16px; width:100%; max-width:360px}
+.stats div{flex:1; padding:12px 6px}
+.stats div + div{box-shadow:-1px 0 0 var(--sep)}
+.stats b{display:block; font-size:1.25rem; font-weight:700; font-variant-numeric:tabular-nums}
+.stats span{font-size:.75rem; color:var(--fg2)}
+.fin .acts{margin-top:auto; padding-top:18px; display:grid; gap:8px; width:100%; max-width:360px}
+.photo-lbl{cursor:pointer}
+
+/* sheets */
+.ov{position:fixed; inset:0; z-index:50; background:rgba(10,10,8,.32); display:flex; align-items:flex-end; justify-content:center; animation:fade .2s}
+.ov.top{z-index:60}
+@keyframes fade{from{opacity:0}}
+.sheet{width:100%; max-width:600px; max-height:92%; overflow:auto; background:var(--surface); border-radius:22px 22px 0 0; padding:8px max(18px, env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px, env(safe-area-inset-left,0px)); animation:up .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes up{from{transform:translateY(40px)}}
+@media (prefers-reduced-motion: reduce){.sheet,.ov{animation:none}}
+.grab{width:36px; height:5px; border-radius:3px; background:var(--fill2); margin:0 auto 6px}
+.sheet .nav{margin-bottom:8px}
+.sheet .stack{gap:14px}
+.preview{background:var(--bg); border-radius:12px; padding:12px 14px; font-size:1rem; line-height:1.85}
+.preview small{display:block; font-size:.75rem; color:var(--fg2); font-weight:600; margin-bottom:2px}
+.seg{display:flex; background:var(--fill); border-radius:9px; padding:2px; gap:2px}
+.seg button{flex:1; padding:7px 10px; border-radius:7px; font-size:.875rem; font-weight:500; text-align:center; min-height:34px; white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.sw{width:51px; height:31px; border-radius:16px; background:var(--fill2); position:relative; flex:none; transition:background .2s}
+.sw::after{content:""; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.2); transition:transform .2s}
+.sw[aria-checked="true"]{background:var(--acc)}
+.sw[aria-checked="true"]::after{transform:translateX(20px)}
+.alert{text-align:center; padding-top:10px}
+.alert .ring{width:64px; height:64px; border-radius:50%; background:var(--heat-soft); color:var(--heat); display:grid; place-items:center; margin:0 auto 12px}
+.alert .ring .ic{width:30px; height:30px}
+.alert h2{margin:0; font-size:1.5rem}
+.alert p{margin:4px 0 0; color:var(--fg2); font-size:.9375rem}
+.alert .cond{display:flex; align-items:center; gap:10px; justify-content:center; margin:16px 0 0; padding:12px; border-radius:14px; background:var(--bg); font-size:.9375rem}
+.alert .cond .ic{color:var(--acc); width:22px; height:22px}
+.alert .two{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.set .row{--inset:16px; flex-wrap:wrap}
+.set .seg{flex:0 1 auto}
+.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(100px + env(safe-area-inset-bottom,0px)); background:var(--fg); color:var(--bg); padding:10px 18px; border-radius:22px; font-weight:600; z-index:70; font-size:.875rem; white-space:nowrap}
+</style>
+
+<div id="app"></div>
+<div id="modal"></div>
+
+<script>
+(function(){
+"use strict";
+const sv = (p, w=1.8) => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const I = {
+  flame: sv('<path d="M12 3.2c.9 2.9 4.6 4.9 4.6 9.3a4.6 4.6 0 0 1-9.2 0c0-2 1-3.4 2-4.4.3 1.5 1 2.4 1.8 2.8-.2-2.6.1-5.4.8-7.7Z" fill="currentColor" stroke="none"/>'),
+  clock: sv('<circle cx="12" cy="13" r="7.8"/><path d="M12 9v4.2l2.6 1.6M9.6 2.6h4.8"/>'),
+  mw: sv('<rect x="2.5" y="5.5" width="19" height="13" rx="2.2"/><rect x="5.5" y="8.5" width="9.5" height="7" rx="1"/><path d="M18.3 9.5v.01M18.3 12.5v.01"/>'),
+  oven: sv('<rect x="3.5" y="3" width="17" height="18" rx="2.4"/><path d="M3.5 8.2h17"/><rect x="7" y="11" width="10" height="6.5" rx="1"/>'),
+  home: sv('<path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v11h4.5v-6h4v6h4.5V9"/>'),
+  fork: sv('<path d="M5.5 3v5a2.5 2.5 0 0 0 5 0V3M8 3v18"/><path d="M18.5 21V3c-2.3 1.2-3.6 4-3.6 7.5V13h3.6"/>'),
+  flower: sv('<circle cx="12" cy="6.4" r="3.3"/><circle cx="17.3" cy="10.3" r="3.3"/><circle cx="15.3" cy="16.5" r="3.3"/><circle cx="8.7" cy="16.5" r="3.3"/><circle cx="6.7" cy="10.3" r="3.3"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/>'),
+  check: sv('<path d="m5 12.5 4.5 4.5L19 7.5"/>', 2.6),
+  play: sv('<path d="M8 5.5v13l10.5-6.5Z" fill="currentColor"/>'),
+  pause: sv('<path d="M9 6v12M15 6v12"/>', 2.8),
+  reset: sv('<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4.5v4h4"/>', 2),
+  x: sv('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>', 2.2),
+  left: sv('<path d="m14.5 5-7 7 7 7"/>', 2.4),
+  chev: sv('<path d="m9.5 6 6 6-6 6"/>', 2),
+  plus: sv('<path d="M12 5v14M5 12h14"/>', 2.2),
+  cam: sv('<path d="M4 8.5h3l1.8-2.5h6.4L17 8.5h3V19H4Z"/><circle cx="12" cy="13.3" r="3.2"/>'),
+  pot: sv('<path d="M4.5 10.5h15v5.5a4 4 0 0 1-4 4h-7a4 4 0 0 1-4-4Z"/><path d="M2.5 10.5h19M9.5 10.5V8a2.5 2.5 0 0 1 5 0v2.5"/>'),
+  book: sv('<path d="M4.5 5.5A1.5 1.5 0 0 1 6 4h12.5v14H6a1.5 1.5 0 0 0-1.5 1.5Z"/><path d="M4.5 19.5A1.5 1.5 0 0 0 6 21h12.5v-3"/>'),
+  gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>', 1.6),
+  bell: sv('<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>')
+};
+
+/* ---------- sample recipes ---------- */
+const SAMPLE = `バターチキンカレー（3～4人分）
+❶ 鶏肉を漬け込む。
+ボウルに【ヨーグルト100g】、【カレー粉 大1】、【にんにくチューブ4cm】、【生姜チューブ4cm】、塩こしょう適量を入れて混ぜる。ひと口大に切った【鶏もも肉350g】を加え、よく揉み込む。
+❷ 玉ねぎとトマトを炒め煮にする。
+鍋に【バター10g】を溶かし、みじん切りにした【玉ねぎ1個】を飴色になるまで炒める。【トマト缶400g】を加え、酸味を飛ばすため10分程度煮込む。
+❸ カレーを煮込む。
+水分が飛んだら、【コンソメ 小1】、❶の鶏肉、【カレー粉 大1】を加えて軽く混ぜる。【牛乳200ml】を加え、弱火で火を通す。
+❹ 仕上げる。
+【はちみつ 大1】、【ウスターソース 大1】、【バター20g】を加えて味を整えたら完成。お好みでポーションミルクをかけてもOK。
+
+コンソメスープ
+❶ 具材を煮込む。
+鍋に【水300ml】、【角切りベーコン（分量記載なし）】、【コンソメ1個】、【炒め玉ねぎ1/2袋】を入れて火にかける。
+❷ 味を整える。
+塩こしょう適量で味を整えたら完成。`;
+const SAMPLE_EXTRA = `
+
+鮭とじゃがいものチーズ焼き（2人分）
+❶ じゃがいもをレンジで加熱する。
+【じゃがいも2個】を薄切りにして耐熱皿に並べ、ラップをして600Wで4分加熱する。
+❷ 鮭を焼く。
+フライパンに【オリーブオイル 大1】を熱し、【生鮭2切れ】を中火で焼く。焼き色がついたら裏返し、弱火にして3分焼く。
+❸ オーブンで焼く。
+耐熱皿に❶のじゃがいも、❷の鮭をのせ、【マヨネーズ 大2】、【ピザ用チーズ40g】をかける。200℃に予熱したオーブンで15分焼く。
+❹ 休ませて仕上げる。
+取り出して5分置く。お好みで【パセリ 少々】を散らしたら完成。
+
+ほうれん草のおひたし（2人分）
+❶ ほうれん草をゆでる。
+鍋に湯を沸かし、【ほうれん草1束】を強火で1分ゆでる。
+❷ 水気をしぼる。
+冷水にとり、しっかり水気をしぼって4cm長さのざく切りにする。
+❸ 味をなじませる。
+【めんつゆ 大2】、【水 大2】を合わせ、ほうれん草を5分漬ける。お好みで【かつお節 適量】をのせる。`;
+
+/* ---------- parser ---------- */
+const MK = /^\s*([❶-❿①-⑳]|\d{1,2}[\.．\)）])\s*/;
+const mkNum = s => { const c = s.codePointAt(0); if (c>=0x2776&&c<=0x277F) return c-0x2775; if (c>=0x2460&&c<=0x2473) return c-0x245F; return parseInt(s,10); };
+const uid = () => Math.random().toString(36).slice(2,9);
+const STATE_WORDS = /色|飛ん|飛ぶ|透明|透き通|しんなり|沸騰|沸い|煮立|火が通|とろみ|溶け|ふつふつ|柔らか|やわらか|浮い|香り|固ま|カリッ|こんがり/;
+const HEAT_RE = /強めの中火|弱めの中火|中弱火|中強火|強火|中火|弱火|とろ火/g;
+const CUT_RE = /みじん切り|薄切り|乱切り|千切り|せん切り|角切り|輪切り|くし形切り|ざく切り|細切り|小口切り|半月切り|いちょう切り|ひと口大|一口大|斜め切り|そぎ切り/g;
+const VERB = '煮込|煮詰|煮て|煮る|炒め|置|焼|蒸|茹|ゆで|加熱|寝かせ|漬け|休ませ|蒸らし|揚げ|冷や';
+const VLABEL = {煮込:'煮込み',煮詰:'煮詰め',煮て:'煮る',煮る:'煮る',炒め:'炒め',置:'置く',焼:'焼く',蒸:'蒸す',茹:'ゆでる',ゆで:'ゆでる',加熱:'加熱',寝かせ:'寝かせる',漬け:'漬ける',休ませ:'休ませる',蒸らし:'蒸らす',揚げ:'揚げる',冷や:'冷やす'};
+const mask = s => s.replace(/【[^】]*】/g, m => '＿'.repeat(m.length));
+
+function parseIng(inner){
+  const raw = inner.trim(); let name = raw, amount = '', note = '';
+  const pm = raw.match(/[（(]([^）)]*)[）)]\s*$/);
+  if (pm){ note = pm[1]; name = raw.slice(0, pm.index).trim(); }
+  const am = name.match(/^(.*?)[\s　]*((?:大さじ|小さじ|大|小)[\s　]*\d+(?:[\/.]\d+)?(?:[〜～~\-]\d+(?:[\/.]\d+)?)?|\d+(?:[\/.]\d+)?(?:[〜～~\-]\d+(?:[\/.]\d+)?)?[\s　]*(?:kg|g|ml|mL|cc|cm|L|個|本|枚|袋|切れ|片|かけ|缶|カップ|合|丁|パック|束|株|玉|尾|房|杯|粒)?|適量|少々|ひとつまみ|少量)$/);
+  if (am && am[1]){ name = am[1].trim(); amount = am[2]; }
+  amount = amount.replace(/^大[\s　]*(?=\d)/,'大さじ').replace(/^小[\s　]*(?=\d)/,'小さじ');
+  return {name, amount, note, raw};
+}
+
+function analyzeStep(n, title, body){
+  const st = {n, title, body, sentences:[], ings:[], outs:[], heat:[], timers:[], conds:[], flags:[]};
+  st.sentences = body.replace(/。/g,'。\n').split('\n').map(s=>s.trim()).filter(Boolean);
+  st.sentences.forEach(s => {
+    const m0 = mask(s);
+    for (const m of s.matchAll(/【([^】]+)】/g)){
+      const g = parseIng(m[1]); g.optional = s.slice(Math.max(0,m.index-5), m.index).includes('お好み'); st.ings.push(g);
+      if (!g.amount) st.flags.push({k: g.note ? '分量が書かれていない' : '分量を読み取れない', msg: g.note ? `「${g.name}」の分量が書かれていません（${g.note}）。` : `【${g.raw}】の分量を読み取れませんでした。`, kind:'ing', orig:m[0], name:g.name, amount:''});
+    }
+    for (const m of m0.matchAll(/(?:^|[、。\s])([^、。\s＿]{1,10}?)(適量|少々|ひとつまみ)/g)){
+      const name = m[1].replace(/^(と|や|に|を)/,''); st.outs.push({name, amount:m[2]});
+      st.flags.push({k:'【】の外の材料', msg:`「${name} ${m[2]}」は【】の外に書かれていたため、材料として読み取りました。`, kind:'out', orig:name+m[2], name, amount:m[2]});
+    }
+    const om = m0.match(/お好みで([^、。＿]{1,12}?)(?=を|も)/);
+    if (om){ st.outs.push({name:om[1], amount:'', optional:true}); st.flags.push({k:'お好みの材料', msg:`「${om[1]}」は「お好みで」の材料です。分量は書かれていません。`, kind:'out', orig:om[1], name:om[1], amount:''}); }
+    for (const m of m0.matchAll(HEAT_RE)) if (!st.heat.includes(m[0])) st.heat.push(m[0]);
+    const isAppl = /\d{3,4}\s*W/.test(m0) || /オーブン|トースター/.test(s);
+    if (!isAppl){
+      for (const m of m0.matchAll(new RegExp(`(\\d+)\\s*分(程度|ほど|くらい|ぐらい|前後)?([^、。＿]{0,4}?)(${VERB})`, 'g'))){
+        st.timers.push({sec:+m[1]*60, label:VLABEL[m[4]]||'', approx:!!m[2], text:m[1]+'分'+(m[2]||'')});
+        if (m[2]) st.flags.push({k:'目安の時間', msg:`「${m[1]}分${m[2]}」は目安の時間です。${m[1]}分のタイマーにしています。`, kind:'time', orig:m[1]+'分'+m[2], min:m[1], approx:true});
+      }
+    }
+    for (const m of m0.matchAll(/[^、。＿を]{1,14}?(?:まで|たら|だら)/g)){
+      const c = m[0].replace(/^.*?(?:強めの中火|弱めの中火|強火|中火|弱火|とろ火)で/,'');
+      if (STATE_WORDS.test(c) && !st.conds.includes(c)) st.conds.push(c);
+    }
+  });
+  if (!st.heat.length && !/\d{3,4}\s*W|オーブン|トースター/.test(body)){
+    const hm = body.match(/火にかけ|熱し|煮立て|沸かし/);
+    if (hm) st.flags.push({k:'火加減が書かれていない', msg:`「${hm[0]}」の火加減が書かれていません。`, kind:'noheat', orig:hm[0]});
+  }
+  return st;
+}
+
+function parseAll(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const out = []; let cur = null, step = null;
+  const newRecipe = t => { let name = t, servings = ''; const sm = t.match(/[（(]([^）)]*人分[^）)]*)[）)]/); if (sm){ servings = sm[1]; name = t.replace(sm[0],'').trim(); } cur = {id:uid(), name, servings, photo:'', cooked:0, raw:[]}; out.push(cur); step = null; };
+  lines.forEach((l, i) => {
+    const m = l.match(MK);
+    if (m){
+      if (!cur) newRecipe('レシピ');
+      const rest = l.slice(m[0].length), num = mkNum(m[1]);
+      let title = rest.replace(/。$/,''), body = '';
+      if (rest.includes('【') || rest.length > 30){ const idx = rest.indexOf('。'); if (idx>0 && !rest.slice(0,idx).includes('【')){ title = rest.slice(0,idx); body = rest.slice(idx+1); } else { title = 'ステップ'+num; body = rest; } }
+      step = {n:num, title, body}; cur.raw.push(step); return;
+    }
+    const nx = lines[i+1] && lines[i+1].match(MK);
+    if (!cur || (nx && mkNum(nx[1])===1 && !l.includes('【') && l.length <= 40)){ newRecipe(l); return; }
+    if (step) step.body += l;
+  });
+  out.forEach(r => {
+    r.steps = r.raw.map(s => analyzeStep(s.n, s.title, s.body || s.title+'。'));
+    r.flags = []; r.steps.forEach((s, si) => s.flags.forEach(f => r.flags.push({...f, si, id:uid(), status:'open'})));
+    delete r.raw;
+  });
+  return out.filter(r => r.steps.length);
+}
+
+/* ---------- highlighter ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function hl(s, ctx){
+  const m0 = mask(s), spans = [];
+  const add = (a, b, h) => { if (b<=a || spans.some(x => a < x[1] && b > x[0])) return; spans.push([a,b,h]); };
+  const ed = (kind, orig, extra) => ctx ? ` data-act="edtok" data-ref="${ctx.ref}" data-si="${ctx.si}" data-kind="${kind}" data-orig="${esc(orig)}" ${extra||''} role="button" tabindex="0"` : '';
+  const ec = c => ctx ? c+' editable' : c;
+  const ingH = (name, amt, dim, kind, orig) => `<span class="${ec('ing')}"${ed(kind, orig, `data-name="${esc(name)}" data-amount="${esc(dim?'':amt)}"`)}><b>${esc(name)}</b>${amt?`<span class="amt${dim?' dim':''}">${dim?'（'+esc(amt)+'）':esc(amt)}</span>`:''}</span>`;
+  for (const m of s.matchAll(/【([^】]+)】/g)){ const g = parseIng(m[1]); add(m.index, m.index+m[0].length, ingH(g.name, g.amount || g.note, !g.amount && !!g.note, 'ing', m[0])); }
+  for (const m of m0.matchAll(/[❶-❿①-⑳]の[^、。＿\sをにと]{1,10}/g)) add(m.index, m.index+m[0].length, `<span class="ref">${esc(m[0])}</span>`);
+  for (const m of m0.matchAll(/(\d{3,4})\s*W\s*(?:で|・|、)?\s*(?:約)?(?:(\d+)\s*分)?(?:\s*(\d+)\s*秒)?/g)) if (m[2]||m[3]){ const t = m[0].replace(/で\s*$/,''); add(m.index, m.index+t.length, `<span class="${ec('tok appl')}"${ed('mw', t, `data-watt="${m[1]}" data-min="${m[2]||''}" data-sec="${m[3]||''}"`)}>${I.mw}${esc(t)}</span>`); }
+  if (/オーブン|トースター/.test(s)){
+    for (const m of m0.matchAll(/(\d{2,3})\s*℃/g)) add(m.index, m.index+m[0].length, `<span class="${ec('tok appl')}"${ed('temp', m[0], `data-min="${m[1]}"`)}>${I.oven}${esc(m[0])}</span>`);
+    for (const m of m0.matchAll(/(\d+)\s*分/g)) add(m.index, m.index+m[0].length, `<span class="${ec('tok appl')}"${ed('time', m[0], `data-min="${m[1]}" data-oven="1"`)}>${esc(m[0])}</span>`);
+  } else if (!/\d{3,4}\s*W/.test(m0)){
+    for (const m of m0.matchAll(new RegExp(`(\\d+)\\s*分(程度|ほど|くらい|ぐらい|前後)?(?=[^、。＿]{0,4}?(?:${VERB}))`, 'g'))) add(m.index, m.index+m[0].length, `<span class="${ec('tok time')}"${ed('time', m[0], `data-min="${m[1]}" data-approx="${m[2]?1:''}"`)}>${I.clock}${esc(m[0])}</span>`);
+  }
+  for (const m of m0.matchAll(HEAT_RE)) add(m.index, m.index+m[0].length, `<span class="${ec('tok heat')}"${ed('heat', m[0], `data-heat="${m[0]}"`)}>${I.flame}${esc(m[0])}</span>`);
+  for (const m of m0.matchAll(/[^、。＿を]{1,14}?(?:まで|たら|だら)/g)){
+    const pre = m[0].match(/^.*?(?:強めの中火|弱めの中火|強火|中火|弱火|とろ火)で/); const off = pre ? pre[0].length : 0; const c = m[0].slice(off);
+    if (STATE_WORDS.test(c)) add(m.index+off, m.index+m[0].length, `<b class="em">${esc(c)}</b>`);
+  }
+  for (const m of m0.matchAll(CUT_RE)) add(m.index, m.index+m[0].length, `<b class="em">${esc(m[0])}</b>`);
+  for (const m of m0.matchAll(/(?:^|[、。\s])([^、。\s＿]{1,10}?)(適量|少々|ひとつまみ)/g)){ const name = m[1].replace(/^(と|や|に|を)/,''); const a = m.index + m[0].length - name.length - m[2].length; add(a, a+name.length+m[2].length, ingH(name, m[2], false, 'out', name+m[2])); }
+  for (const m of m0.matchAll(/お好みで([^、。＿]{1,12}?)(?=を|も)/g)){ add(m.index, m.index+4, `<span class="opt">お好みで</span>`); add(m.index+4, m.index+4+m[1].length, ingH(m[1], '', false, 'out', m[1])); }
+  for (const m of m0.matchAll(/お好みで/g)) add(m.index, m.index+4, `<span class="opt">お好みで</span>`);
+  spans.sort((a,b) => a[0]-b[0]);
+  const units = [], PART = /^[、。をにでがはとへや]+$/;
+  const plain = t => (t.match(/[^、。をにでがはとへや]*[、。をにでがはとへや]+|[^、。をにでがはとへや]+/g) || []).forEach(ph => { if (PART.test(ph) && units.length) units[units.length-1] += esc(ph); else units.push(esc(ph)); });
+  let p = 0; for (const [a,b,h] of spans){ plain(s.slice(p,a)); units.push(h); p = b; } plain(s.slice(p));
+  return units.map(u => `<span class="ph">${u}</span>`).join('');
+}
+function units(st){
+  const out = [];
+  st.sentences.forEach(x => { if (out.length && x.replace(/。$/,'').length <= 6) out[out.length-1] += x; else out.push(x); });
+  return out;
+}
+function bodyHtml(st, ctx){
+  const u = units(st);
+  return u.length > 1 ? `<ul class="blist">${u.map(x => `<li><span>${hl(x, ctx)}</span></li>`).join('')}</ul>` : `<p>${hl(u[0]||'', ctx)}</p>`;
+}
+
+/* ---------- state ---------- */
+const KEY = 'hitome-recipe-v2';
+const DEF = {fs:'m', theme:'auto', emph:'std', prog:'bar', sound:true, repeat:true, wake:true, swipe:true};
+function seed(){
+  const rs = parseAll(SAMPLE + SAMPLE_EXTRA);
+  rs.forEach(r => r.flags.forEach(f => f.status = 'ok'));
+  rs[0].cooked = 2; rs[1].cooked = 5;
+  const now = Date.now();
+  const ses = [
+    {id:uid(), rid:rs[0].id, step:2, started:true, finished:false, prepped:[], startedAt:now-18*60000},
+    {id:uid(), rid:rs[2].id, step:0, started:true, finished:false, prepped:['じゃがいも','生鮭'], startedAt:now-3*60000}
+  ];
+  return {recipes:rs, sessions:ses, timers:[], settings:{...DEF}, view:'overview', activeSid:ses[0].id, draft:'', parsed:null, pick:[], ovEdit:false, libEdit:false};
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch(e){ S = null; }
+if (!S || !S.recipes) S = seed();
+S.settings = {...DEF, ...(S.settings||{})};
+let saveT;
+function save(){ clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){ try { localStorage.setItem(KEY, JSON.stringify({...S, recipes:S.recipes.map(r=>({...r, photo:''}))})); } catch(_){} } }, 120); }
+const R = id => S.recipes.find(r => r.id === id);
+const SES = id => S.sessions.find(s => s.id === id);
+const ui = {confirm:null, toast:'', sheet:null};
+
+/* ---------- timers ---------- */
+const tKey = (sid, si, k) => `${sid}:${si}:${k}`;
+const T = key => S.timers.find(t => t.key === key);
+const remain = t => !t ? 0 : t.state==='run' ? Math.max(0, t.endAt-Date.now()) : t.state==='pause' ? t.remain : t.state==='done' ? 0 : t.dur;
+const fmt = ms => { const s = Math.ceil(ms/1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+function tStart(d){
+  let t = T(d.key);
+  if (!t){ t = {key:d.key, sid:d.sid, si:+d.si, label:d.label, dur:+d.sec*1000, state:'idle'}; S.timers.push(t); }
+  t.endAt = Date.now() + (t.state==='pause' ? t.remain : t.dur); t.state = 'run'; t.ack = false; save(); render();
+}
+function tPause(key){ const t = T(key); if (!t) return; t.remain = remain(t); t.state = 'pause'; save(); render(); }
+function tReset(key){ S.timers = S.timers.filter(t => t.key !== key); stopAlarmIfNone(); save(); render(); }
+function tPlus(key){ const t = T(key); if (!t) return; t.state = 'run'; t.ack = false; t.endAt = Date.now()+60000; stopAlarmIfNone(); save(); render(); }
+function tAck(key){ const t = T(key); if (t) t.ack = true; stopAlarmIfNone(); save(); render(); }
+let audio = null, alarmIv = null;
+function unlockAudio(){ try { if (!audio) audio = new (window.AudioContext||window.webkitAudioContext)(); if (audio.state==='suspended') audio.resume(); } catch(e){} }
+function beep(force){
+  if ((!S.settings.sound && !force) || !audio) return;
+  try { [0,.26,.52].forEach((o,i) => { const os = audio.createOscillator(), g = audio.createGain(); os.type='sine'; os.frequency.value = [784,988,1175][i]; const t0 = audio.currentTime+o; g.gain.setValueAtTime(.0001,t0); g.gain.exponentialRampToValueAtTime(.28,t0+.03); g.gain.exponentialRampToValueAtTime(.0001,t0+.5); os.connect(g).connect(audio.destination); os.start(t0); os.stop(t0+.55); }); } catch(e){}
+}
+function startAlarm(){ beep(); clearInterval(alarmIv); if (S.settings.repeat) alarmIv = setInterval(() => { if (S.timers.some(t => t.state==='done' && !t.ack)) beep(); else stopAlarmIfNone(); }, 2200); }
+function stopAlarmIfNone(){ if (!S.timers.some(t => t.state==='done' && !t.ack)){ clearInterval(alarmIv); alarmIv = null; } }
+setInterval(() => {
+  let fired = false;
+  S.timers.forEach(t => { if (t.state!=='run') return; if (Date.now() >= t.endAt){ t.state='done'; t.ack=false; fired=true; } else document.querySelectorAll(`[data-t="${t.key}"]`).forEach(el => el.textContent = fmt(remain(t))); });
+  if (fired){ save(); render(); startAlarm(); }
+}, 250);
+
+/* ---------- wake lock (no visible indicator) ---------- */
+let wakeLock = null;
+async function updateWake(){
+  const want = S.view==='cook' && S.settings.wake && document.visibilityState==='visible';
+  try {
+    if (want && !wakeLock && 'wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+    else if (!want && wakeLock){ await wakeLock.release(); wakeLock = null; }
+  } catch(e){ wakeLock = null; }
+}
+document.addEventListener('visibilitychange', updateWake);
+
+/* ---------- helpers ---------- */
+const thumb = r => `<div class="thumb">${r.photo?`<img src="${r.photo}" alt="">`:esc(r.name.slice(0,1))}</div>`;
+const progLine = (total, cur, fin) => `<div class="prog-line">${Array.from({length:total},(_,i)=>`<i class="${fin||i<cur?'d':i===cur?'c':''}"></i>`).join('')}</div>`;
+const sesTimers = sid => S.timers.filter(t => t.sid===sid && t.state!=='idle');
+const posLabel = (ses, r) => ses.finished ? '完成' : ses.step===0 ? '準備' : `ステップ ${ses.step} / ${r.steps.length}`;
+function prepList(r){
+  const map = new Map();
+  r.steps.forEach(st => {
+    st.ings.forEach(g => { const k = g.name; if (!map.has(k)) map.set(k, {name:k, amounts:[], note:'', optional:g.optional}); const it = map.get(k); if (g.amount) it.amounts.push(g.amount); else if (g.note) it.note = g.note; });
+    st.outs.forEach(g => { const k = g.name; if (!map.has(k)) map.set(k, {name:k, amounts:[], note:'', optional:!!g.optional}); const it = map.get(k); if (g.amount && !it.amounts.includes(g.amount)) it.amounts.push(g.amount); });
+  });
+  return [...map.values()];
+}
+
+/* ---------- screens ---------- */
+function vOverview(){
+  const pending = S.sessions.some(s => !s.started);
+  const rows = S.sessions.map(s => {
+    const r = R(s.rid); if (!r) return '';
+    const ts = sesTimers(s.id), n = r.steps.length;
+    const status = !s.started ? `<span class="pill wait">スタート前</span>` : s.finished ? `<span class="pill ok">${I.check}完成</span>` : ts.map(t => `<span class="pill ${t.state==='done'?'done':''}">${I.clock}<span ${t.state==='run'?`data-t="${t.key}"`:''}>${t.state==='done'?'時間です':fmt(remain(t))}</span></span>`).join('');
+    const sub = !s.started ? `${n}ステップ${r.servings?' ・ '+esc(r.servings):''}` : s.finished ? `調理回数：${r.cooked||1}回` : s.step===0 ? '準備 ・ 材料をそろえる' : `ステップ${s.step} ・ ${esc(r.steps[s.step-1].title)}`;
+    const conf = ui.confirm === 'rm:'+s.id;
+    const inner = `${thumb(r)}<div class="grow"><div class="name">${esc(r.name)}</div><span class="sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sub}</span>${s.started?progLine(n+1, s.step, s.finished):''}</div>`;
+    if (S.ovEdit) return `<div class="row ses-row">${inner}${conf?`<button class="mini red" data-act="rmses" data-sid="${s.id}">外す</button><button class="mini gray" data-act="cancel">やめる</button>`:`<button class="mini gray" data-act="ask" data-v="rm:${s.id}">外す</button>`}</div>`;
+    return s.started ? `<button class="row ses-row" data-act="open" data-sid="${s.id}">${inner}<span style="display:flex;gap:4px;align-items:center">${status}<span class="chev">${I.chev}</span></span></button>` : `<div class="row ses-row" data-act="detail" data-rid="${r.id}" data-from="overview" role="button" tabindex="0" style="cursor:pointer">${inner}${status}</div>`;
+  }).join('');
+  const left = 3 - S.sessions.length;
+  return `<div class="page">
+    <div class="nav"><span></span><span></span>${S.sessions.length?`<button class="tl r" data-act="ovedit">${S.ovEdit?'完了':'編集'}</button>`:'<span></span>'}</div>
+    <div class="lt"><h1>調理中</h1>${S.sessions.length ? '' : '<p>作りたい料理を3品まで選べます。</p>'}</div>
+    ${S.sessions.length ? `<div class="group">${rows}</div>` : ''}
+    <div class="stack" style="margin-top:18px">
+      ${pending ? `<button class="btn pri" data-act="startall">調理スタート</button>` : ''}
+      ${left>0 && !S.ovEdit ? `<button class="btn ${S.sessions.length?'tint':'pri'}" data-act="pickopen">${I.plus}料理を追加</button>` : ''}
+    </div>
+    ${left<=0 ? '<p class="foot">3品そろいました。料理を外すと、別の料理を追加できます。</p>' : ''}
+  </div>`;
+}
+
+function vPick(){
+  const left = 3 - S.sessions.length, n = S.pick.length;
+  const rows = S.recipes.map(r => {
+    const inList = S.sessions.some(s => s.rid === r.id), sel = S.pick.includes(r.id), full = !sel && n >= left;
+    return `<button class="row pick-row ${sel?'sel':''} ${inList||full?'dim':''}" data-act="pick" data-rid="${r.id}" ${inList||full?'disabled':''} aria-pressed="${sel}"><span class="ck-circle">${sel?I.check:''}</span>${thumb(r)}<div class="grow"><div class="name">${esc(r.name)}</div><span class="sub">${inList?'調理中のリストにあります':`${r.steps.length}ステップ${r.servings?' ・ '+esc(r.servings):''}`}</span></div></button>`;
+  }).join('');
+  return `<div class="page" style="padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))">
+    <div class="nav"><button class="tl" data-act="pickcancel">キャンセル</button><span class="ttl">料理を追加</span><button class="tl b r" data-act="pickok" ${n?'':'disabled'}>決定</button></div>
+    <div class="lt"><h1>料理を選ぶ</h1><p>あと${left}品選べます</p></div>
+    <div class="group">${rows || '<div class="empty">レシピがありません</div>'}</div>
+    <div class="group" style="margin-top:18px"><button class="row" data-act="go" data-v="input" style="color:var(--acc);font-weight:500">${I.plus}新しいレシピを貼り付ける</button></div>
+  </div>
+  <div class="bottom-cta"><div class="in"><button class="btn pri" data-act="pickok" ${n?'':'disabled'}>${n?`決定（${n}品）`:'料理を選んでください'}</button></div></div>`;
+}
+
+function vLibrary(){
+  const rows = S.recipes.map(r => {
+    const inList = S.sessions.some(s => s.rid === r.id), full = S.sessions.length >= 3, conf = ui.confirm === 'del:'+r.id;
+    const trail = S.libEdit ? (conf ? `<button class="mini red" data-act="delr" data-rid="${r.id}">削除</button><button class="mini gray" data-act="cancel">やめる</button>` : `<button class="mini gray" data-act="ask" data-v="del:${r.id}" ${inList?'disabled':''}>削除</button>`)
+      : inList ? `<span class="pill wait">調理リスト</span>` : `<button class="mini" data-act="addone" data-rid="${r.id}" ${full?'disabled':''}>${I.plus}追加</button>`;
+    return `<div class="row" style="--inset:80px;cursor:pointer" ${S.libEdit?'':`data-act="detail" data-rid="${r.id}" data-from="library" role="button" tabindex="0"`}>${thumb(r)}<div class="grow"><div class="name">${esc(r.name)}</div><span class="sub">${r.steps.length}ステップ${r.cooked?` ・ 調理回数：${r.cooked}回`:''}</span></div>${trail}</div>`;
+  }).join('');
+  return `<div class="page">
+    <div class="nav"><button class="tl" data-act="libedit">${S.libEdit?'完了':'編集'}</button><span></span><button class="tl r" data-act="go" data-v="input" aria-label="レシピを追加">${I.plus}</button></div>
+    <div class="lt"><h1>レシピ</h1></div>
+    ${rows ? `<div class="group">${rows}</div>` : ''}
+    <div style="margin-top:18px"><button class="btn tint" data-act="go" data-v="input">${I.plus}レシピを追加</button></div>
+  </div>`;
+}
+
+function vDetail(){
+  const base = R(S.detailId); if (!base){ S.view = 'library'; return vLibrary(); }
+  const E = S.detailEdit, r = E ? S.detailDraft : base, ref = 'd';
+  const list = prepList(r);
+  const inList = S.sessions.some(s => s.rid === base.id), full = S.sessions.length >= 3;
+  const steps = r.steps.map((st, si) => `<div class="dstep"><div style="display:flex;gap:10px;align-items:baseline"><div style="flex:1;min-width:0"><div class="n">ステップ${si+1}</div><div class="t">${esc(st.title)}</div></div>${E?`<button class="mini gray" data-act="edstep" data-ref="${ref}" data-si="${si}">直す</button>`:''}</div><div class="tx">${bodyHtml(st, E ? {ref, si} : null)}</div></div>`).join('');
+  return `<div class="page">
+    <div class="nav">${E?`<button class="tl" data-act="dcancel">キャンセル</button>`:`<button class="tl" data-act="dback">${I.left}${S.detailFrom==='overview'?'調理中':S.detailFrom==='cook'?'調理画面':'レシピ'}</button>`}<span class="ttl">${E?'編集':''}</span>${E?`<button class="tl b r" data-act="ddone">完了</button>`:`<button class="tl r" data-act="dedit">編集</button>`}</div>
+    <div class="dhead">${E?`<label class="photo-lbl" aria-label="写真を変える" style="position:relative">${thumb(r)}<span style="position:absolute;right:-4px;bottom:-4px;width:26px;height:26px;border-radius:50%;background:var(--surface);display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.2);color:var(--acc)">${I.cam}</span><input class="vh" type="file" accept="image/*" data-photo="draft" id="dph"></label>`:thumb(r)}
+      <div style="flex:1;min-width:0">${E?`<label class="vh" for="dname">料理名</label><input class="nameinp" id="dname" style="font-size:1.5rem" value="${esc(r.name)}">`:`<h1>${esc(r.name)}</h1>`}<div class="meta">${r.steps.length}ステップ${r.servings?' ・ '+esc(r.servings):''}${r.cooked?` ・ 調理回数：${r.cooked}回`:''}</div></div></div>
+    ${E?'<p class="editing-bar">下線の部分をタップして直せます</p>':''}
+    <p class="cap">材料</p><div class="group"><ul class="notes">${list.map(x => `<li><span><span class="nm">${esc(x.name)}</span>${x.optional?'<span style="color:var(--fg2);font-size:.85em">（お好みで）</span>':''}<span class="a ${x.amounts.length?'':'dim'}">${esc(x.amounts.join(' ＋ ') || x.note || '分量の記載なし')}</span></span></li>`).join('')}</ul></div>
+    <p class="cap">レシピ</p><div class="group">${steps}</div>
+    ${E?'':`<div style="margin-top:18px">${inList?`<button class="btn plain" disabled>調理中のリストにあります</button>`:`<button class="btn tint" data-act="addone" data-rid="${base.id}" ${full?'disabled':''}>${I.plus}調理中のリストに追加</button>`}</div>`}
+  </div>`;
+}
+
+function vInput(){
+  return `<div class="page">
+    <div class="nav"><button class="tl" data-act="go" data-v="library">キャンセル</button><span class="ttl">新しいレシピ</span><span></span></div>
+    <div class="lt"><h1>貼り付け</h1><p>❶❷のステップと【材料 分量】の形で書くと、正確に読み取れます。</p></div>
+    <label class="vh" for="draft">レシピの文章</label>
+    <textarea class="ta" id="draft" placeholder="ここにレシピを貼り付け">${esc(S.draft||'')}</textarea>
+    <div class="stack" style="margin-top:14px"><button class="btn pri" data-act="parse">読み取る</button><button class="btn plain" data-act="sample">入力例を入れる</button></div>
+  </div>`;
+}
+
+function vReview(){
+  const P = S.parsed || [];
+  if (!P.length) return `<div class="page"><div class="nav"><button class="tl" data-act="go" data-v="input">${I.left}戻る</button><span class="ttl">読み取り結果</span><span></span></div><div class="group empty" style="margin-top:20px">ステップ（❶❷…）が見つかりませんでした。<br>ステップの前に番号をつけて、もう一度お試しください。</div></div>`;
+  const open = P.reduce((a,r) => a + r.flags.filter(f => f.status==='open').length, 0);
+  const body = P.map((r, ri) => {
+    const flags = r.flags.map(f => `<div class="flag ${f.status!=='open'?'done':''}"><div class="fk">ステップ${f.si+1}</div><div class="fm">${esc(f.msg)}</div>
+      ${f.status==='open' ? `<div class="fa"><button class="mini" data-act="fok" data-ri="${ri}" data-fid="${f.id}">${I.check}このままでOK</button><button class="mini gray" data-act="ffix" data-ri="${ri}" data-fid="${f.id}">直す</button></div>`
+      : f.status==='ok' ? `<span class="st">${I.check}このままで確定</span> <button class="mini gray" style="margin-left:6px" data-act="fundo" data-ri="${ri}" data-fid="${f.id}">取り消す</button>`
+      : `<span class="st">${I.check}修正して確定${f.after?`：${esc(f.after)}`:''}</span>`}</div>`).join('');
+    const steps = r.steps.map((s, si) => `<div class="rstep"><div class="h"><span class="n">ステップ${si+1}</span><span class="t">${esc(s.title)}</span><button class="mini gray" data-act="edstep" data-ref="p${ri}" data-si="${si}">直す</button></div><div class="tx">${bodyHtml(s, {ref:'p'+ri, si})}</div></div>`).join('');
+    return `${P.length>1?`<p class="cap">${ri+1}品目</p>`:''}
+      <div class="group"><div class="row"><div class="grow"><label for="rn-${ri}" style="font-size:.75rem;color:var(--fg2)">料理名${r.servings?` ・ ${esc(r.servings)}`:''}</label><input class="nameinp" id="rn-${ri}" data-rname="${ri}" value="${esc(r.name)}"></div></div></div>
+      ${r.flags.length?`<p class="cap">確認してほしいこと</p><div class="group">${flags}</div>`:''}
+      <p class="cap">読み取ったレシピ</p><div class="group">${steps}</div>`;
+  }).join('');
+  return `<div class="page" style="padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))">
+    <div class="nav"><button class="tl" data-act="go" data-v="input">${I.left}貼り付け</button><span class="ttl">読み取り結果</span><span></span></div>
+    <div class="lt"><h1>確認</h1><p>下線の部分はタップして直せます。</p></div>
+    ${body}
+  </div>
+  <div class="bottom-cta"><div class="in stack" style="gap:8px">
+    <button class="btn pri" data-act="saveadd" ${open||S.sessions.length+P.length>3?'disabled':''}>${open?`確認があと${open}件あります`:S.sessions.length+P.length>3?'調理リストがいっぱいです':'保存して調理リストに追加'}</button>
+    ${open?'':`<button class="btn plain" data-act="saveonly">レシピに保存だけする</button>`}
+  </div></div>`;
+}
+
+function stepCard(ses, r, si){
+  const st = r.steps[si];
+  const timers = st.timers.map((tm, k) => {
+    const key = tKey(ses.id, si, k), t = T(key), lbl = `${tm.text}${tm.label?' '+tm.label:''}`;
+    const d = `data-key="${key}" data-sid="${ses.id}" data-si="${si}" data-sec="${tm.sec}" data-label="${esc(lbl)}"`;
+    if (!t || t.state==='idle') return `<button class="timer" data-act="tstart" ${d}>${I.clock}<span class="tx"><span class="big">${fmt(tm.sec*1000)}</span><span class="lb" style="display:block">${esc(lbl)}</span></span><span class="go">開始</span></button>`;
+    if (t.state==='done') return `<div class="timer done"><span class="tx"><span class="big">時間です</span>${st.conds.length?`<span class="cond">${I.flower}${esc(st.conds.join('・'))}か見てから次へ</span>`:`<span class="lb" style="display:block">${esc(lbl)}</span>`}</span><button class="cbtn" data-act="tplus" data-key="${key}" aria-label="1分延長" style="font-weight:700;font-size:.8125rem">+1分</button><button class="cbtn solid" data-act="treset" data-key="${key}" aria-label="閉じる">${I.check}</button></div>`;
+    const run = t.state==='run';
+    return `<div class="timer run"><span class="tx"><span class="big" data-t="${key}">${fmt(remain(t))}</span><span class="lb" style="display:block">${esc(lbl)}${run?'':' ・ 一時停止中'}</span></span><button class="cbtn" data-act="treset" data-key="${key}" aria-label="リセット">${I.reset}</button>${run?`<button class="cbtn solid" data-act="tpause" data-key="${key}" aria-label="一時停止">${I.pause}</button>`:`<button class="cbtn solid" data-act="tstart" ${d} aria-label="再開">${I.play}</button>`}</div>`;
+  }).join('');
+  return `<article class="scard fitme"><div class="snum">ステップ${si+1}</div><h2 class="stitle">${esc(st.title)}</h2>
+    <div class="recipe">${bodyHtml(st)}</div>
+    ${timers?`<div class="timers">${timers}</div>`:''}</article>`;
+}
+
+function prepCard(ses, r){
+  const list = prepList(r), done = list.filter(x => ses.prepped.includes(x.name)).length;
+  return `<article class="scard prep"><div class="snum">準備</div><h2 class="stitle">材料をそろえる</h2>
+    <ul class="plist ${list.length>11?'two':''}" id="plist">${list.map(x => { const sel = ses.prepped.includes(x.name); const am = x.amounts.join(' ＋ '); return `<li><button class="pitem ${sel?'sel':''}" data-act="prep" data-name="${esc(x.name)}" aria-pressed="${sel}"><span class="bx">${sel?I.check:''}</span><span class="pt"><span class="pn">${esc(x.name)}</span>${x.optional?'<span class="tag">お好みで</span>':''}<span class="pa ${am?'':'dim'}">${esc(am || x.note || '分量の記載なし')}</span></span></button></li>`; }).join('')}</ul>
+    <div class="pcount">${done} / ${list.length}</div></article>`;
+}
+
+function finCard(ses, r){
+  const mins = Math.max(1, Math.round(((ses.finishedAt||Date.now()) - (ses.startedAt||Date.now()))/60000));
+  const nextSes = S.sessions.find(s => s.started && !s.finished && s.id !== ses.id);
+  const petals = [[-70,-50],[64,-62],[-84,20],[80,14],[-30,-84],[36,-88]].map(([x,y],i) => `<i class="petal" style="left:69px;top:69px;--dx:${x}px;--dy:${y}px;animation-delay:${.15+i*.08}s;${i%2?'background:var(--heat)':''}"></i>`).join('');
+  return `<article class="fin"><div class="hero">${petals}<label class="photo-lbl ph" aria-label="完成写真を登録">${r.photo?`<img class="fadein" src="${r.photo}" alt="${esc(r.name)}">`:I.fork}<input class="vh" type="file" accept="image/*" data-photo="${r.id}" id="fin-ph"></label><span class="badge">${I.check}</span></div>
+    <h2>完成しました</h2><div class="dish">${esc(r.name)}</div>
+    <div class="stats"><div><b>${r.steps.length}</b><span>ステップ</span></div><div><b>${mins}分</b><span>かかった時間</span></div><div><b>${r.cooked||1}回目</b><span>作った回数</span></div></div>
+    <div class="acts">
+      ${nextSes ? `<button class="btn pri" data-act="sw" data-sid="${nextSes.id}">次の料理へ：${esc(R(nextSes.rid).name)}</button>` : ''}
+      <label class="btn ${nextSes?'plain':'tint'} photo-lbl">${I.cam}${r.photo?'写真を撮り直す':'完成写真を残す'}<input class="vh" type="file" accept="image/*" data-photo="${r.id}" id="fin-ph2"></label>
+      <button class="btn ${nextSes?'plain':'pri'}" data-act="close" data-sid="${ses.id}">${nextSes?'この料理を閉じる':'閉じる'}</button>
+      <button class="tl" style="justify-content:center;font-size:.9375rem" data-act="unfinish" data-sid="${ses.id}">ステップに戻る</button>
+    </div></article>`;
+}
+
+function vCook(){
+  const started = S.sessions.filter(s => s.started);
+  let ses = SES(S.activeSid); if (!ses || !ses.started) ses = started[0];
+  if (!ses){ S.view = 'overview'; return vOverview(); }
+  S.activeSid = ses.id;
+  const r = R(ses.rid), n = r.steps.length, p = ses.step;
+  const tabs = started.map(s => { const rr = R(s.rid), ts = sesTimers(s.id); return `<button class="dtab" data-act="sw" data-sid="${s.id}" aria-current="${s.id===ses.id}"><span class="nm">${esc(rr.name)}</span><span class="st">${s.finished?'完成':s.step===0?'準備':`${s.step}/${rr.steps.length}`}</span>${ts.length?`<span class="dot ${ts.some(t=>t.state==='done')?'done':''}"></span>`:''}</button>`; }).join('');
+  const prog = ses.finished ? '' : `<button class="progbtn" data-act="steps" aria-label="ステップ一覧">${S.settings.prog==='bar'?progLine(n+1, p, false):`<span class="lbl">${Math.round(p/n*100)}%</span><span style="flex:1"></span>`}<span class="all">一覧</span></button>`;
+  const stage = ses.finished ? finCard(ses, r) : p===0 ? prepCard(ses, r) : stepCard(ses, r, p-1);
+  const dock = S.timers.filter(t => t.state!=='idle' && !(t.sid===ses.id && t.si===p-1 && !ses.finished)).map(t => {
+    const s2 = SES(t.sid), rr = s2 && R(s2.rid); if (!rr) return '';
+    const run = t.state==='run', dn = t.state==='done';
+    return `<div class="dk ${dn?'done':''}"><button class="info" data-act="jump" data-sid="${t.sid}" data-i="${t.si+1}">${esc(rr.name)} ・ ${t.si+1}<b ${run?`data-t="${t.key}"`:''}>${dn?'時間です':fmt(remain(t))}</b></button><button class="cbtn" ${run?`data-act="tpause" data-key="${t.key}" aria-label="一時停止"`:dn?`data-act="treset" data-key="${t.key}" aria-label="閉じる"`:`data-act="tresume" data-key="${t.key}" aria-label="再開"`}>${run?I.pause:dn?I.check:I.play}</button></div>`;
+  }).join('');
+  const next = p===0 ? `<span class="a">ステップ1へ</span><span class="b">${esc(r.steps[0].title)}</span>` : p<n ? `<span class="a">次のステップへ</span><span class="b">${p+1}. ${esc(r.steps[p].title)}</span>` : `<span class="a">完成</span>`;
+  return `<div class="ck">
+    <div class="ck-head"><div class="ck-top"><button class="homebtn" data-act="go" data-v="overview">${I.home}ホーム</button><div class="dtabs">${tabs}</div></div>${prog || '<div style="height:12px"></div>'}</div>
+    <div class="stage" id="stage">${stage}</div>
+    ${dock?`<div class="dock">${dock}</div>`:''}
+    ${ses.finished?'<div style="height:12px;flex:none"></div>':`<div class="cbar"><button class="prev" data-act="prev" ${p===0?'disabled':''} aria-label="前へ">${I.left}</button><button class="next" data-act="next">${next}</button></div>`}
+  </div>`;
+}
+
+const seg = (k, opts) => `<div class="seg">${opts.map(([v,l]) => `<button data-act="set" data-k="${k}" data-v="${v}" aria-pressed="${S.settings[k]===v}">${l}</button>`).join('')}</div>`;
+const swc = (k, label) => `<button class="sw" role="switch" aria-checked="${!!S.settings[k]}" data-act="tog" data-k="${k}" aria-label="${label}"></button>`;
+function vSettings(){
+  const conf = ui.confirm === 'reset';
+  return `<div class="page set"><div class="nav"><span></span><span></span><span></span></div>
+  <div class="lt"><h1>設定</h1></div>
+  <p class="cap">表示</p><div class="group">
+    <div class="row"><span class="grow">文字の大きさ</span>${seg('fs',[['m','標準'],['l','大'],['xl','特大']])}</div>
+    <div class="row"><span class="grow">テーマ</span>${seg('theme',[['auto','自動'],['light','ライト'],['dark','ダーク']])}</div>
+    <div class="row"><span class="grow">強調の強さ</span>${seg('emph',[['low','控えめ'],['std','標準'],['high','はっきり']])}</div>
+    <div class="row"><span class="grow">進み具合</span>${seg('prog',[['bar','バー'],['num','％']])}</div>
+  </div>
+  <p class="cap">調理中</p><div class="group">
+    <div class="row"><span class="grow">スワイプで移動<span class="sub">左へスワイプで次のステップ</span></span>${swc('swipe','スワイプで移動')}</div>
+    <div class="row"><span class="grow">画面を消さない<span class="sub">調理画面を開いている間</span></span>${swc('wake','画面を消さない')}</div>
+  </div><p class="foot">画面を消さない機能は、対応しているブラウザで動きます。</p>
+  <p class="cap">タイマー</p><div class="group">
+    <div class="row"><span class="grow">終了の音</span>${swc('sound','終了の音')}</div>
+    <div class="row"><span class="grow">止めるまで鳴らす</span>${swc('repeat','止めるまで鳴らす')}</div>
+    <button class="row" data-act="testsound" style="color:var(--acc);font-weight:500">音を試す</button>
+  </div><p class="foot">iPhoneでは画面を消すと音が鳴らないことがあります。残り時間は終了時刻から計算するので、開き直してもずれません。</p>
+  <p class="cap">データ</p><div class="group">
+    <div class="row"><span class="grow">見本のレシピに戻す<span class="sub">保存したレシピと進み具合が消えます</span></span>${conf?`<button class="mini red" data-act="reset">戻す</button><button class="mini gray" data-act="cancel">やめる</button>`:`<button class="mini gray" data-act="ask" data-v="reset">戻す</button>`}</div>
+  </div><p class="foot">レシピ・進み具合・設定は、この端末のブラウザに保存されます。</p></div>`;
+}
+
+function tabbar(){
+  const cur = S.view==='overview' || (S.view==='detail' && S.detailFrom==='overview') ? 'o' : S.view==='settings' ? 's' : 'l';
+  return `<nav class="tabbar"><div class="in">
+    <button data-act="go" data-v="overview" ${cur==='o'?'aria-current="page"':''}>${I.pot}調理中</button>
+    <button data-act="go" data-v="library" ${cur==='l'?'aria-current="page"':''}>${I.book}レシピ</button>
+    <button data-act="go" data-v="settings" ${cur==='s'?'aria-current="page"':''}>${I.gear}設定</button></div></nav>`;
+}
+
+/* ---------- sheets ---------- */
+const getR = ref => ref==='d' ? S.detailDraft : S.parsed && S.parsed[+String(ref).slice(1)];
+function replFor(sh){
+  if (sh.kind==='mw'){ const w = parseInt(sh.watt,10), m = parseInt(sh.min,10)||0, sc = parseInt(sh.sec,10)||0; if (!w || (!m && !sc)) return null; return `${w}Wで${m?m+'分':''}${sc?sc+'秒':''}`; }
+  if (sh.kind==='temp'){ const t = parseInt(sh.min,10); if (!t) return null; return `${t}℃`; }
+  if (sh.kind==='ing' || sh.kind==='out'){ const nm = (sh.name||'').trim(); if (!nm) return null; const am = (sh.amount||'').trim(); return `【${nm}${am?' '+am:''}】`; }
+  if (sh.kind==='time'){ const m = parseInt(sh.min,10); if (!m) return null; return `${m}分${sh.approx?'程度':''}`; }
+  if (sh.kind==='heat') return sh.heat;
+  if (sh.kind==='noheat'){ if (!sh.heat) return ''; return {火にかけ:`${sh.heat}にかけ`, 熱し:`${sh.heat}で熱し`, 煮立て:`${sh.heat}で煮立て`, 沸かし:`${sh.heat}で沸かし`}[sh.orig] || sh.orig; }
+  return null;
+}
+function previewHtml(sh){
+  const r = getR(sh.ref), st = r.steps[sh.si];
+  if (sh.kind==='step') return (sh.body||'').replace(/。/g,'。\n').split('\n').filter(x=>x.trim()).map(x => hl(x.trim())).join('<br>');
+  const rep = replFor(sh); if (rep===null) return '<span style="color:var(--fg2)">入力してください</span>';
+  if (sh.kind==='noheat' && !sh.heat) return st.sentences.filter(x => x.includes(sh.orig)).map(x => hl(x)).join('');
+  const s = st.sentences.find(x => x.includes(sh.orig)) || '';
+  return hl(s.replace(sh.orig, rep));
+}
+function vSheet(){
+  const sh = ui.sheet; if (!sh) return '';
+  if (sh.kind==='steps'){
+    const ses = SES(S.activeSid), r = R(ses.rid);
+    const rows = [{t:'準備', s:'材料をそろえる'}].concat(r.steps.map((x,i)=>({t:`ステップ ${i+1}`, s:x.title}))).map((x,i) => `<button class="row" data-act="goto" data-i="${i}"><span class="ck-circle" style="${i<ses.step?'background:var(--acc);border-color:var(--acc)':i===ses.step?'border-color:var(--acc);border-width:2px':''}">${i<ses.step?I.check:''}</span><span class="grow"><span style="font-size:.8125rem;color:var(--fg2)">${x.t}</span><span style="display:block;font-weight:${i===ses.step?700:500}">${esc(x.s)}</span></span></button>`).join('');
+    return `<div class="ov" data-act="sclose"><div class="sheet" data-stop="1"><div class="grab"></div><div class="nav"><span></span><span class="ttl">${esc(r.name)}</span><button class="tl b r" data-act="sclose">閉じる</button></div><div class="group" style="background:var(--bg)">${rows}</div><div class="group" style="background:var(--bg);margin-top:12px"><button class="row" data-act="detail" data-rid="${r.id}" data-from="cook" style="color:var(--acc);font-weight:500">レシピを見る・直す</button></div></div></div>`;
+  }
+  const titles = {ing:'材料を直す', out:'材料を直す', time:'時間を直す', heat:'火加減を直す', noheat:'火加減を決める', step:'ステップを直す', mw:'電子レンジを直す', temp:'オーブンの温度を直す'};
+  let fields = '';
+  if (sh.kind==='ing' || sh.kind==='out') fields = `<div class="field"><label for="sh-name">材料名</label><input class="inp" id="sh-name" value="${esc(sh.name)}"></div><div class="field"><label for="sh-amount">分量</label><input class="inp" id="sh-amount" value="${esc(sh.amount)}" placeholder="例：50g、大さじ1、適量"></div>`;
+  if (sh.kind==='time') fields = `<div class="field"><label for="sh-min">時間（分）</label><input class="inp" id="sh-min" inputmode="numeric" value="${esc(sh.min)}"></div>${sh.oven?'':`<div class="row" style="padding:0 4px;min-height:44px"><span class="grow">目安の時間（〜程度）</span><button class="sw" role="switch" aria-checked="${!!sh.approx}" data-act="shapprox" aria-label="目安の時間"></button></div>`}`;
+  if (sh.kind==='mw') fields = `<div class="field"><label for="sh-watt">出力（W）</label><input class="inp" id="sh-watt" inputmode="numeric" value="${esc(sh.watt)}"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label for="sh-min">分</label><input class="inp" id="sh-min" inputmode="numeric" value="${esc(sh.min)}"></div><div class="field"><label for="sh-sec">秒</label><input class="inp" id="sh-sec" inputmode="numeric" value="${esc(sh.sec)}"></div></div>`;
+  if (sh.kind==='temp') fields = `<div class="field"><label for="sh-min">温度（℃）</label><input class="inp" id="sh-min" inputmode="numeric" value="${esc(sh.min)}"></div>`;
+  if (sh.kind==='heat' || sh.kind==='noheat') fields = `<div class="field"><label>火加減</label><div class="seg">${(sh.kind==='noheat'?[['','指定しない']]:[]).concat([['弱火','弱火'],['中火','中火'],['強火','強火']]).map(([v,l]) => `<button data-act="shheat" data-v="${v}" aria-pressed="${(sh.heat||'')===v}">${l}</button>`).join('')}</div></div>`;
+  if (sh.kind==='step') fields = `<div class="field"><label for="sh-title">見出し</label><input class="inp" id="sh-title" value="${esc(sh.title)}"></div><div class="field"><label for="sh-body">レシピ</label><textarea class="ta sm" id="sh-body">${esc(sh.body)}</textarea></div>`;
+  return `<div class="ov"><div class="sheet"><div class="grab"></div>
+    <div class="nav"><button class="tl" data-act="sclose">キャンセル</button><span class="ttl">${titles[sh.kind]}</span><button class="tl b r" data-act="sapply">確定</button></div>
+    <div class="stack">${fields}<div class="preview"><small>直したあとのレシピ</small><div id="sh-prev">${previewHtml(sh)}</div></div>
+    <button class="btn pri" data-act="sapply">この内容で確定</button></div></div></div>`;
+}
+function applyEdit(){
+  const sh = ui.sheet, r = getR(sh.ref), old = r.steps[sh.si];
+  let title = old.title, body = old.body;
+  if (sh.kind==='step'){ title = (sh.title||'').trim() || old.title; body = sh.body || ''; }
+  else if (sh.kind==='noheat' && !sh.heat){ const f = r.flags.find(x => x.id===sh.fid); if (f) f.status = 'ok'; ui.sheet = null; save(); return render(); }
+  else {
+    const rep = replFor(sh); if (rep===null) return toast('入力を確認してください');
+    const i = body.indexOf(sh.orig); if (i < 0) return toast('元の文章が見つかりません。「直す」から文章ごと修正できます');
+    body = body.slice(0,i) + rep + body.slice(i+sh.orig.length);
+  }
+  const ns = analyzeStep(old.n, title, body); r.steps[sh.si] = ns;
+  const olds = r.flags.filter(f => f.si===sh.si), byMsg = new Map(olds.map(f => [f.msg, f]));
+  const nf = ns.flags.map(f => { const o = byMsg.get(f.msg); return {...f, si:sh.si, id:o?o.id:uid(), status:o?o.status:'fixed', after:o?o.after:''}; });
+  olds.forEach(o => { if (!nf.some(x => x.msg===o.msg) && (o.status!=='open' || o.id===sh.fid)) nf.push({...o, status: o.status==='ok' && o.id!==sh.fid ? 'ok' : 'fixed', after: o.id===sh.fid ? afterText(sh) : o.after}); });
+  olds.forEach(o => { if (o.status==='open' && o.id!==sh.fid && !nf.some(x=>x.msg===o.msg)) nf.push({...o, status:'fixed', after:'ステップを修正'}); });
+  r.flags = r.flags.filter(f => f.si!==sh.si).concat(nf).sort((a,b) => a.si-b.si);
+  ui.sheet = null; save(); render(); toast('修正しました');
+}
+const afterText = sh => sh.kind==='mw'||sh.kind==='temp' ? replFor(sh) : sh.kind==='ing'||sh.kind==='out' ? `${sh.name} ${sh.amount||''}`.trim() : sh.kind==='time' ? `${sh.min}分${sh.approx?'程度':''}` : sh.kind==='step' ? 'ステップを修正' : sh.heat;
+
+function vAlert(){
+  const t = S.timers.find(x => x.state==='done' && !x.ack); if (!t) return '';
+  const ses = SES(t.sid), r = ses && R(ses.rid); if (!r) return '';
+  const st = r.steps[t.si];
+  return `<div class="ov top" role="alertdialog" aria-labelledby="al-t"><div class="sheet"><div class="grab"></div><div class="alert">
+    <div class="ring">${I.bell}</div><h2 id="al-t">時間です</h2><p>${esc(r.name)} ・ ステップ${t.si+1}　${esc(t.label)}</p>
+    ${st.conds.length?`<div class="cond">${I.flower}<span><b>${esc(st.conds.join('・'))}</b>か見てから次へ</span></div>`:''}
+    <div class="stack" style="margin-top:18px"><button class="btn pri" style="min-height:60px;font-size:1.125rem" data-act="ack" data-key="${t.key}">止める</button>
+    <div class="two"><button class="btn plain" data-act="mplus" data-key="${t.key}">＋1分</button><button class="btn plain" data-act="mjump" data-key="${t.key}" data-sid="${t.sid}" data-i="${t.si+1}">このステップへ</button></div></div>
+  </div></div></div>`;
+}
+
+/* ---------- render ---------- */
+const app = document.getElementById('app'), modal = document.getElementById('modal');
+function applySettings(){
+  const s = S.settings;
+  document.documentElement.style.fontSize = {m:'16px', l:'17px', xl:'18.5px'}[s.fs];
+  if (s.theme==='auto') document.documentElement.removeAttribute('data-app-theme'); else document.documentElement.setAttribute('data-app-theme', s.theme);
+  document.body.classList.remove('emph-low','emph-std','emph-high'); document.body.classList.add('emph-'+s.emph);
+  document.body.classList.toggle('locked', S.view==='cook');
+}
+function render(){
+  applySettings();
+  const v = S.view;
+  const html = v==='cook' ? vCook() : v==='library' ? vLibrary() : v==='input' ? vInput() : v==='review' ? vReview() : v==='settings' ? vSettings() : v==='pick' ? vPick() : v==='detail' ? vDetail() : vOverview();
+  const showTab = ['overview','library','settings'].includes(S.view) || (S.view==='detail' && !S.detailEdit);
+  app.innerHTML = html + (showTab ? tabbar() : '') + (ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : '');
+  renderModal();
+  if (S.view==='cook') requestAnimationFrame(fit);
+}
+function renderModal(){ modal.innerHTML = vSheet() + vAlert(); }
+function fitPrep(){
+  const pl = document.getElementById('plist'); if (!pl) return;
+  const L = [[19,10],[18,8],[17,6.5],[16,5],[15,4],[14,3]];
+  const n = pl.children.length, mult = {m:1, l:1.08, xl:1.16}[S.settings.fs];
+  let i = n <= 8 ? 0 : n <= 12 ? 1 : n <= 18 ? 2 : 3;
+  const setL = () => { pl.style.setProperty('--pf', (L[i][0]*mult).toFixed(1)+'px'); pl.style.setProperty('--pg', L[i][1]+'px'); };
+  setL();
+  while (pl.scrollHeight > pl.clientHeight + 1 && i < L.length-1){ i++; setL(); }
+  /* if it still does not fit, the list itself scrolls (overflow-y:auto) so every item stays reachable */
+}
+function fit(){
+  fitPrep();
+  const card = document.querySelector('.scard.fitme'); if (!card) return;
+  const base = {m:20, l:22, xl:24}[S.settings.fs];
+  card.classList.remove('scroll'); let fs = base; card.style.setProperty('--tx', fs+'px');
+  for (let g=0; g<8 && card.scrollHeight > card.clientHeight + 1 && fs > 17; g++){ fs -= 1; card.style.setProperty('--tx', fs+'px'); }
+  if (card.scrollHeight > card.clientHeight + 1) card.classList.add('scroll');
+}
+window.addEventListener('resize', () => { if (S.view==='cook') fit(); });
+function go(v){ S.view = v; ui.confirm = null; save(); render(); window.scrollTo(0,0); updateWake(); }
+let toastT; function toast(m){ ui.toast = m; render(); clearTimeout(toastT); toastT = setTimeout(() => { ui.toast = ''; const el = document.querySelector('.toast'); if (el) el.remove(); }, 2200); }
+
+/* ---------- actions ---------- */
+let lastMove = 0;
+function move(dir){
+  const ses = SES(S.activeSid); if (!ses || ses.finished) return;
+  const r = R(ses.rid), n = r.steps.length;
+  if (Date.now() - lastMove < 400) return; lastMove = Date.now();
+  if (dir > 0){ if (ses.step < n) ses.step++; else { ses.finished = true; ses.finishedAt = Date.now(); r.cooked = (r.cooked||0) + 1; } }
+  else if (ses.step > 0) ses.step--;
+  save(); render();
+}
+function addSessions(rids){ rids.forEach(rid => { if (S.sessions.length < 3 && !S.sessions.some(s => s.rid===rid)) S.sessions.push({id:uid(), rid, step:0, started:false, finished:false, prepped:[]}); }); }
+function act(a, d){
+  switch(a){
+    case 'go': return go(d.v);
+    case 'open': S.activeSid = d.sid; return go('cook');
+    case 'startall': { let first = null; S.sessions.forEach(s => { if (!s.started){ s.started = true; s.startedAt = Date.now(); first = first || s.id; } }); S.activeSid = first || S.activeSid; return go('cook'); }
+    case 'pickopen': S.pick = []; return go('pick');
+    case 'pick': { const i = S.pick.indexOf(d.rid); if (i>=0) S.pick.splice(i,1); else if (S.pick.length < 3 - S.sessions.length) S.pick.push(d.rid); save(); return render(); }
+    case 'pickcancel': S.pick = []; return go('overview');
+    case 'pickok': { const n = S.pick.length; addSessions(S.pick); S.pick = []; go('overview'); return toast(`${n}品を追加しました`); }
+    case 'addone': addSessions([d.rid]); save(); return toast('調理中のリストに追加しました');
+    case 'ovedit': S.ovEdit = !S.ovEdit; ui.confirm = null; save(); return render();
+    case 'libedit': S.libEdit = !S.libEdit; ui.confirm = null; save(); return render();
+    case 'rmses': S.sessions = S.sessions.filter(s => s.id !== d.sid); S.timers = S.timers.filter(t => t.sid !== d.sid); ui.confirm = null; if (!S.sessions.length) S.ovEdit = false; stopAlarmIfNone(); save(); return render();
+    case 'sw': S.activeSid = d.sid; save(); return go('cook');
+    case 'next': return move(1);
+    case 'prev': return move(-1);
+    case 'steps': ui.sheet = {kind:'steps'}; return renderModal();
+    case 'goto': { const s = SES(S.activeSid); s.step = +d.i; ui.sheet = null; save(); return render(); }
+    case 'jump': { const s = SES(d.sid); if (s){ S.activeSid = s.id; s.step = +d.i; s.finished = false; } save(); return render(); }
+    case 'prep': { const s = SES(S.activeSid), i = s.prepped.indexOf(d.name); if (i>=0) s.prepped.splice(i,1); else s.prepped.push(d.name); save(); return render(); }
+    case 'unfinish': { const s = SES(d.sid), r = R(s.rid); s.finished = false; r.cooked = Math.max(0,(r.cooked||1)-1); s.step = r.steps.length; save(); return render(); }
+    case 'close': { S.sessions = S.sessions.filter(s => s.id !== d.sid); S.timers = S.timers.filter(t => t.sid !== d.sid); save(); const nx = S.sessions.find(s => s.started); if (nx){ S.activeSid = nx.id; return render(); } return go('overview'); }
+    case 'tstart': return tStart(d);
+    case 'tresume': { const t = T(d.key); return tStart({key:d.key, sid:t.sid, si:t.si, sec:t.dur/1000, label:t.label}); }
+    case 'tpause': return tPause(d.key);
+    case 'treset': return tReset(d.key);
+    case 'tplus': return tPlus(d.key);
+    case 'ack': return tAck(d.key);
+    case 'mplus': return tPlus(d.key);
+    case 'mjump': { tAck(d.key); const s = SES(d.sid); if (s){ S.activeSid = s.id; s.step = +d.i; s.finished = false; } return go('cook'); }
+    case 'ask': ui.confirm = d.v; return render();
+    case 'cancel': ui.confirm = null; return render();
+    case 'delr': S.recipes = S.recipes.filter(r => r.id !== d.rid); ui.confirm = null; save(); return render();
+    case 'sample': S.draft = SAMPLE; save(); return render();
+    case 'parse': { const ta = document.getElementById('draft'); S.draft = ta ? ta.value : S.draft; S.parsed = parseAll(S.draft); return go('review'); }
+    case 'fok': { const f = S.parsed[+d.ri].flags.find(x => x.id===d.fid); f.status = 'ok'; save(); return render(); }
+    case 'fundo': { const f = S.parsed[+d.ri].flags.find(x => x.id===d.fid); f.status = 'open'; save(); return render(); }
+    case 'ffix': { const f = S.parsed[+d.ri].flags.find(x => x.id===d.fid); ui.sheet = {ref:'p'+d.ri, oven:false, si:f.si, kind:f.kind, orig:f.orig, name:f.name||'', amount:f.amount||'', min:f.min||'', approx:!!f.approx, heat:'', fid:f.id}; return renderModal(); }
+    case 'edtok': {
+      if (d.kind==='step') return act('edstep', d);
+      const r = getR(d.ref), f = (r.flags||[]).find(x => x.si===+d.si && x.orig===d.orig && x.status==='open');
+      ui.sheet = {ref:d.ref, si:+d.si, kind:d.kind, orig:d.orig, name:d.name||'', amount:d.amount||'', min:d.min||'', watt:d.watt||'', sec:d.sec||'', oven:!!d.oven, approx:!!d.approx, heat:d.heat||'', fid:f?f.id:null};
+      return renderModal();
+    }
+    case 'edstep': { const st = getR(d.ref).steps[+d.si]; ui.sheet = {ref:d.ref, si:+d.si, kind:'step', title:st.title, body:st.body, fid:null}; return renderModal(); }
+    case 'detail': ui.sheet = null; S.detailId = d.rid; S.detailFrom = d.from || 'library'; S.detailEdit = false; S.detailDraft = null; return go('detail');
+    case 'dback': return go(S.detailFrom==='cook' ? 'cook' : S.detailFrom==='overview' ? 'overview' : 'library');
+    case 'dedit': S.detailDraft = JSON.parse(JSON.stringify(R(S.detailId))); S.detailEdit = true; save(); render(); return window.scrollTo(0,0);
+    case 'dcancel': S.detailEdit = false; S.detailDraft = null; save(); return render();
+    case 'ddone': {
+      const dr = S.detailDraft, i = S.recipes.findIndex(r => r.id === dr.id); if (i < 0) return;
+      const nm = document.getElementById('dname'); if (nm && nm.value.trim()) dr.name = nm.value.trim();
+      S.recipes[i] = dr;
+      S.sessions.filter(se => se.rid === dr.id).forEach(se => { if (se.step > dr.steps.length) se.step = dr.steps.length; });
+      S.timers = S.timers.filter(t => { const se = SES(t.sid); if (!se || se.rid !== dr.id) return true; const st = dr.steps[t.si]; const k = +t.key.split(':')[2]; return st && k < st.timers.length; });
+      S.detailEdit = false; S.detailDraft = null; save(); render(); return toast('保存しました');
+    }
+    case 'shapprox': ui.sheet.approx = !ui.sheet.approx; return renderModal();
+    case 'shheat': ui.sheet.heat = d.v; return renderModal();
+    case 'sclose': ui.sheet = null; return renderModal();
+    case 'sapply': return applyEdit();
+    case 'saveonly': case 'saveadd': {
+      if (!S.parsed || !S.parsed.length) return;
+      const added = S.parsed.map(r => ({...r, id:uid(), cooked:0}));
+      S.recipes = added.concat(S.recipes); S.parsed = null; S.draft = '';
+      if (a==='saveadd'){ addSessions(added.map(r => r.id)); go('overview'); return toast(`${added.length}品を調理中のリストに追加しました`); }
+      go('library'); return toast(`${added.length}品を保存しました`);
+    }
+    case 'set': S.settings[d.k] = d.v; save(); return render();
+    case 'tog': S.settings[d.k] = !S.settings[d.k]; save(); render(); return updateWake();
+    case 'testsound': unlockAudio(); return beep(true);
+    case 'reset': clearInterval(alarmIv); S = seed(); ui.confirm = null; save(); go('overview'); return toast('見本のレシピに戻しました');
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  if (b.classList.contains('ov') && e.target !== b) { if (e.target.closest('.sheet')) return; }
+  unlockAudio(); act(b.dataset.act, b.dataset); if (S.view==='cook') updateWake();
+});
+document.addEventListener('keydown', e => { if ((e.key==='Enter' || e.key===' ') && e.target.matches('[role="button"][data-act]')){ e.preventDefault(); e.target.click(); } });
+document.addEventListener('input', e => {
+  const id = e.target.id;
+  if (id==='draft'){ S.draft = e.target.value; save(); return; }
+  if (id==='dname' && S.detailDraft){ S.detailDraft.name = e.target.value; save(); return; }
+  if (e.target.dataset.rname !== undefined){ S.parsed[+e.target.dataset.rname].name = e.target.value; save(); return; }
+  if (ui.sheet && /^sh-/.test(id)){ ui.sheet[{'sh-name':'name','sh-amount':'amount','sh-min':'min','sh-watt':'watt','sh-sec':'sec','sh-title':'title','sh-body':'body'}[id]] = e.target.value; const p = document.getElementById('sh-prev'); if (p) p.innerHTML = previewHtml(ui.sheet); }
+});
+document.addEventListener('change', e => {
+  const rid = e.target.dataset && e.target.dataset.photo; if (!rid || !e.target.files || !e.target.files[0]) return;
+  const fr = new FileReader();
+  fr.onload = () => { const img = new Image(); img.onload = () => { const c = document.createElement('canvas'), sc = Math.min(1, 520/Math.max(img.width, img.height)); c.width = img.width*sc; c.height = img.height*sc; c.getContext('2d').drawImage(img,0,0,c.width,c.height); const url = c.toDataURL('image/jpeg', .8); if (rid==='draft'){ if (S.detailDraft) S.detailDraft.photo = url; } else R(rid).photo = url; save(); render(); }; img.src = fr.result; };
+  fr.readAsDataURL(e.target.files[0]);
+});
+let sx = null, sy = 0;
+document.addEventListener('touchstart', e => { if (S.view!=='cook' || !S.settings.swipe || !e.target.closest('#stage') || e.target.closest('button,label')){ sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, {passive:true});
+document.addEventListener('touchend', e => { if (sx===null) return; const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null; if (Math.abs(dx) > 70 && Math.abs(dy) < 50) move(dx < 0 ? 1 : -1); }, {passive:true});
+
+S.timers.forEach(t => { if (t.state==='run' && Date.now() >= t.endAt){ t.state='done'; t.ack=false; } });
+if (S.view==='review' && !S.parsed) S.view = 'input';
+if (S.view==='detail' && !R(S.detailId)) S.view = 'library';
+render(); updateWake();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
